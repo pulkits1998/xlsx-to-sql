@@ -1,5 +1,6 @@
 package com.pulkit.xlsxtosql.controller;
 
+import com.opencsv.exceptions.CsvException;
 import com.pulkit.xlsxtosql.dto.XlsxToSqlFromFileRequest;
 import com.pulkit.xlsxtosql.dto.XlsxToSqlFromUrlRequest;
 import com.pulkit.xlsxtosql.service.XlsxToSqlConvertorService;
@@ -26,6 +27,19 @@ public class XlsxToSqlConvertorController {
         return "Hello 123";
     }
 
+    @GetMapping(value = "/xlsxToSqlFromYamls")
+    public ResponseEntity<String> xlsxToSqlFromYamls(){
+        try {
+            xlsxToSqlConvertorService.convertFromYaml();
+            return ResponseEntity.ok("Done");
+        }
+        catch (CsvException | IOException e){
+            log.error(e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+
+    }
+
     @PostMapping(value = "/xlsxToSqlFromFile", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> xlsxToSqlFromFile(@RequestBody XlsxToSqlFromFileRequest convertRequest){
         try {
@@ -36,7 +50,6 @@ public class XlsxToSqlConvertorController {
             log.error(e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
         }
-
     }
 
     @PostMapping(value = "/xlsxToSqlFromUrl", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -49,6 +62,5 @@ public class XlsxToSqlConvertorController {
             log.error(e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
         }
-
     }
 }

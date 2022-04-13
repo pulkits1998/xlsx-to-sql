@@ -1,0 +1,3 @@
+"src_col","tgt_col","tgt_data_type"
+"CVX Code","cvx_cd","Integer"
+"CVX Short Description","cvx_desc","Varchar"

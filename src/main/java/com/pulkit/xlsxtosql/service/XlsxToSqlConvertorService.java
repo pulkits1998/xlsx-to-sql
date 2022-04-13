@@ -1,15 +1,20 @@
 package com.pulkit.xlsxtosql.service;
 
+import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
+import com.opencsv.bean.ColumnPositionMappingStrategy;
+import com.opencsv.bean.CsvToBean;
+import com.opencsv.exceptions.CsvException;
+import com.pulkit.xlsxtosql.dto.ColumnMappingDTO;
+import com.pulkit.xlsxtosql.dto.InputYamlDTO;
 import org.apache.commons.io.FileUtils;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
 
 import java.io.*;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,19 +37,14 @@ public class XlsxToSqlConvertorService {
 
         Map<Integer, List<String>> data = new HashMap<>();
 
+        DataFormatter formatter = new DataFormatter();
+
         int i = 0;
         for (Row row : sheet) {
             data.put(i, new ArrayList<String>());
             for (Cell cell : row) {
-                switch (cell.getCellType()) {
-                    case STRING:
-                        data.get(i).add(cell.getStringCellValue());
-                        break;
-                    case NUMERIC:
-                        data.get(i).add(String.valueOf(cell.getNumericCellValue()));
-                        break;
-                    default: data.get(i).add(cell.getStringCellValue());;
-                }
+                String cellValue = formatter.formatCellValue(cell);
+                data.get(i).add(cellValue.replaceAll("'","''"));
             }
             i++;
         }
@@ -100,9 +100,41 @@ public class XlsxToSqlConvertorService {
             directory.mkdir();
         }
 
-        String filePath = INPUT_DIR_PATH + SLASH + "Pulkit.xlsx";
+        String fileName = url1.getFile().substring(url1.getFile().lastIndexOf("/") + 1);
+        String filePath = INPUT_DIR_PATH + SLASH + fileName;
 
         FileUtils.copyURLToFile(url1, new File(filePath));
-        return "Hello : " + url1;
+
+        String outputFilePath = convertFromFile(filePath);
+        return outputFilePath;
+    }
+
+    public void convertFromYaml() throws IOException, CsvException {
+        File folder = new File(YAML_DIR);
+        File[] listOfFiles = folder.listFiles();
+
+        for (File file: listOfFiles) {
+            System.out.println("File Is : " + file.getName());
+            if (file.isFile()) {
+                Yaml yaml = new Yaml(new Constructor(InputYamlDTO.class));
+                InputYamlDTO inputYaml = yaml.load(new FileReader(file));
+                System.out.println("Input Yaml Content : " + inputYaml.toString());
+                FileReader filereader = new FileReader(inputYaml.getMappingPath());
+                CSVReader csvReader = new CSVReaderBuilder(filereader).withSkipLines(1).build();
+                ColumnPositionMappingStrategy mappingStrategy = new ColumnPositionMappingStrategy();
+                mappingStrategy.setType(ColumnMappingDTO.class);
+                String[] columns = new String[]{"srcCol","tgtCol","tgtDataType"};
+                mappingStrategy.setColumnMapping(columns);
+                CsvToBean ctb = new CsvToBean();
+                ctb.setMappingStrategy(mappingStrategy);
+                ctb.setCsvReader(csvReader);
+                List<ColumnMappingDTO> inputCsvDTOS = ctb.parse();
+
+                for (ColumnMappingDTO in: inputCsvDTOS) {
+                    System.out.println(in.toString());
+                }
+
+            }
+        }
     }
 }
