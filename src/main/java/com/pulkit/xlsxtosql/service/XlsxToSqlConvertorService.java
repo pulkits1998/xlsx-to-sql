@@ -41,7 +41,7 @@ public class XlsxToSqlConvertorService {
 
         int i = 0;
         for (Row row : sheet) {
-            data.put(i, new ArrayList<String>());
+            data.put(i, new ArrayList<>());
             for (Cell cell : row) {
                 String cellValue = formatter.formatCellValue(cell);
                 data.get(i).add(cellValue.replaceAll("'","''"));
@@ -51,7 +51,67 @@ public class XlsxToSqlConvertorService {
 
         file.close();
 
+        System.out.println("Map Generated Is : ");
+        for (Integer k: data.keySet()) {
+            System.out.println("Key : " + k + " Value : " + data.get(k).toString());
+        }
 
+        File directory = new File(OUTPUT_DIR_PATH);
+        if (! directory.exists()){
+            directory.mkdir();
+        }
+
+        String tableName = f.getName().substring(0,f.getName().length() - XLSX_EXTENSION.length());
+        String outputFilePath = OUTPUT_DIR_PATH + SLASH + tableName + SQL_EXTENSION;
+        FileWriter fileWriter = new FileWriter(outputFilePath);
+        BufferedWriter writer = new BufferedWriter(fileWriter);
+        String header = "(" + data.get(0).toString().substring(1,data.get(0).toString().length()-1) + ")";
+        writer.write("INSERT INTO " + tableName + " " + header + " VALUES \n");
+        for(int k=1;k<data.size();k++){
+
+            String line = "(";
+
+            for(int l=0;l<data.get(k).size();l++){
+                line += "'" + data.get(k).get(l) + "'" + ",";
+            }
+            line = line.substring(0,line.length()-1);
+            if(k == data.size()-1)
+                line += ")";
+            else
+                line += "),\n";
+
+            writer.write(line);
+        }
+
+        writer.close();
+        fileWriter.close();
+
+        return outputFilePath;
+    }
+
+    public String convertFromFile(String path, List<ColumnMappingDTO> columnMappings) throws IOException {
+        File f = new File(path);
+        FileInputStream file = new FileInputStream(f);
+
+        Workbook workbook = new XSSFWorkbook(file);
+
+        Sheet sheet = workbook.getSheetAt(0);
+
+        Map<Integer, List<String>> data = new HashMap<>();
+
+        DataFormatter formatter = new DataFormatter();
+
+        int i = 0;
+        for (Row row : sheet) {
+            data.put(i, new ArrayList<>());
+            for (Cell cell : row) {
+                String cellValue = formatter.formatCellValue(cell);
+                data.get(i).add(cellValue.replaceAll("'","''"));
+            }
+            i++;
+        }
+
+        file.close();
 
         System.out.println("Map Generated Is : ");
         for (Integer k: data.keySet()) {
@@ -119,6 +179,8 @@ public class XlsxToSqlConvertorService {
                 Yaml yaml = new Yaml(new Constructor(InputYamlDTO.class));
                 InputYamlDTO inputYaml = yaml.load(new FileReader(file));
                 System.out.println("Input Yaml Content : " + inputYaml.toString());
+
+                // Reading CSV
                 FileReader filereader = new FileReader(inputYaml.getMappingPath());
                 CSVReader csvReader = new CSVReaderBuilder(filereader).withSkipLines(1).build();
                 ColumnPositionMappingStrategy mappingStrategy = new ColumnPositionMappingStrategy();
@@ -128,10 +190,10 @@ public class XlsxToSqlConvertorService {
                 CsvToBean ctb = new CsvToBean();
                 ctb.setMappingStrategy(mappingStrategy);
                 ctb.setCsvReader(csvReader);
-                List<ColumnMappingDTO> inputCsvDTOS = ctb.parse();
+                List<ColumnMappingDTO> columnMappings = ctb.parse();
 
-                for (ColumnMappingDTO in: inputCsvDTOS) {
-                    System.out.println(in.toString());
+                for (ColumnMappingDTO columnMapping: columnMappings) {
+                    System.out.println(columnMappings.toString());
                 }
 
             }

@@ -1,4 +1,4 @@
 INSERT INTO TestFile1 (First Name, Last Name, Age, Phone No) VALUES 
-('Pulkit','Sharma','23.0','9.999999999E9'),
-('Narendra','Modi','70.0','9.898989898E9'),
-('Vladimir','Putin','68.0','7.979797979E9')
+('Pulkit','Sharma','23','9999999999'),
+('Narendra','Modi','70','9898989898'),
+('Vladimir','Putin','68','7979797979')
