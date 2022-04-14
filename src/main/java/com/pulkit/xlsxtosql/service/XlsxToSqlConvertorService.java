@@ -16,10 +16,7 @@ import org.yaml.snakeyaml.constructor.Constructor;
 
 import java.io.*;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static com.pulkit.xlsxtosql.constants.ApplicationConstants.*;
 
@@ -33,6 +30,7 @@ public class XlsxToSqlConvertorService {
 
         Workbook workbook = new XSSFWorkbook(file);
 
+        // By default, processing only 1st sheet
         Sheet sheet = workbook.getSheetAt(0);
 
         Map<Integer, List<String>> data = new HashMap<>();
@@ -50,11 +48,6 @@ public class XlsxToSqlConvertorService {
         }
 
         file.close();
-
-        System.out.println("Map Generated Is : ");
-        for (Integer k: data.keySet()) {
-            System.out.println("Key : " + k + " Value : " + data.get(k).toString());
-        }
 
         File directory = new File(OUTPUT_DIR_PATH);
         if (! directory.exists()){
@@ -89,12 +82,13 @@ public class XlsxToSqlConvertorService {
         return outputFilePath;
     }
 
-    public String convertFromFile(String path, List<ColumnMappingDTO> columnMappings) throws IOException {
+    public String convertFromFile(String path, Map<String, ColumnMappingDTO> columnMappingsMap) throws IOException {
         File f = new File(path);
         FileInputStream file = new FileInputStream(f);
 
         Workbook workbook = new XSSFWorkbook(file);
 
+        // By default, processing only 1st sheet
         Sheet sheet = workbook.getSheetAt(0);
 
         Map<Integer, List<String>> data = new HashMap<>();
@@ -113,11 +107,6 @@ public class XlsxToSqlConvertorService {
 
         file.close();
 
-        System.out.println("Map Generated Is : ");
-        for (Integer k: data.keySet()) {
-            System.out.println("Key : " + k + " Value : " + data.get(k).toString());
-        }
-
         File directory = new File(OUTPUT_DIR_PATH);
         if (! directory.exists()){
             directory.mkdir();
@@ -127,15 +116,28 @@ public class XlsxToSqlConvertorService {
         String outputFilePath = OUTPUT_DIR_PATH + SLASH + tableName + SQL_EXTENSION;
         FileWriter fileWriter = new FileWriter(outputFilePath);
         BufferedWriter writer = new BufferedWriter(fileWriter);
-        String header = "(" + data.get(0).toString().substring(1,data.get(0).toString().length()-1) + ")";
+
+        Set<Integer> indexes = new HashSet<>();
+        String header = "(";
+        for(int x=0;x<data.get(0).size();x++){
+            if(columnMappingsMap.containsKey(data.get(0).get(x))){
+                header += columnMappingsMap.get(data.get(0).get(x)).getTgtCol();
+                header += ",";
+                indexes.add(x);
+            }
+        }
+        header = header.substring(0,header.length()-1);
+        header += ")";
+
         writer.write("INSERT INTO " + tableName + " " + header + " VALUES \n");
         for(int k=1;k<data.size();k++){
 
             String line = "(";
 
-            for(int l=0;l<data.get(k).size();l++){
-                line += "'" + data.get(k).get(l) + "'" + ",";
+            for(int x : indexes){
+                line += "'" + data.get(k).get(x) + "'" + ",";
             }
+
             line = line.substring(0,line.length()-1);
             if(k == data.size()-1)
                 line += ")";
@@ -151,8 +153,25 @@ public class XlsxToSqlConvertorService {
         return outputFilePath;
     }
 
-    public String convertFromUrl(String url) throws IOException {
+    public String convertFromUrl(String url, Map<String, ColumnMappingDTO> columnMappingsMap) throws IOException {
 
+        URL url1 = new URL(url);
+
+        File directory = new File(INPUT_DIR_PATH);
+        if (! directory.exists()){
+            directory.mkdir();
+        }
+
+        String fileName = url1.getFile().substring(url1.getFile().lastIndexOf("/") + 1);
+        String filePath = INPUT_DIR_PATH + SLASH + fileName;
+
+        FileUtils.copyURLToFile(url1, new File(filePath));
+
+        String outputFilePath = convertFromFile(filePath, columnMappingsMap);
+        return outputFilePath;
+    }
+
+    public String convertFromUrl(String url) throws IOException {
         URL url1 = new URL(url);
 
         File directory = new File(INPUT_DIR_PATH);
@@ -174,7 +193,6 @@ public class XlsxToSqlConvertorService {
         File[] listOfFiles = folder.listFiles();
 
         for (File file: listOfFiles) {
-            System.out.println("File Is : " + file.getName());
             if (file.isFile()) {
                 Yaml yaml = new Yaml(new Constructor(InputYamlDTO.class));
                 InputYamlDTO inputYaml = yaml.load(new FileReader(file));
@@ -191,11 +209,13 @@ public class XlsxToSqlConvertorService {
                 ctb.setMappingStrategy(mappingStrategy);
                 ctb.setCsvReader(csvReader);
                 List<ColumnMappingDTO> columnMappings = ctb.parse();
+                Map<String, ColumnMappingDTO> columnMappingsMap = new HashMap<>();
 
                 for (ColumnMappingDTO columnMapping: columnMappings) {
-                    System.out.println(columnMappings.toString());
+                    columnMappingsMap.put(columnMapping.getSrcCol().strip(),columnMapping);
                 }
 
+                convertFromUrl(inputYaml.getUrl(),columnMappingsMap);
             }
         }
     }

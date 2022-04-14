@@ -1,0 +1,4 @@
+"src_col","tgt_col","tgt_data_type"
+"Sale NDC11","sale_ndc","Varchar"
+"CVX Code","cvx_cd","Varchar"
+"CVX Description","cvx_desc","Varchar"
